@@ -1,0 +1,186 @@
+   // LiquidCrystal - Version: Latest 
+   #include <LiquidCrystal.h>
+  
+   /*
+   Demonstrates the use a 16x2 LCD display.  The LiquidCrystal
+   library works with all LCD displays that are compatible with the
+   Hitachi HD44780 driver. There are many of them out there, and you
+   can usually tell them by the 16-pin interface.
+  
+   The circuit:
+   * LCD RS pin to digital pin 12
+   * LCD Enable E pin to digital pin 11
+   * LCD D4 pin to digital pin 10
+   * LCD D5 pin to digital pin 9   
+   * LCD D6 pin to digital pin 8    
+   * LCD D7 pin to digital pin 7
+   * LCD R/W pin to ground
+   * LCD VSS pin to ground
+   * LCD VCC pin to 5V
+   * 10K resistor for potentiometer:
+   * ends to +5V and ground
+   * LCD VO to pin signal from potentiometer 
+   * LCD A to 5V
+   * LCD K to ground
+  
+   http://www.arduino.cc/en/Tutorial/LiquidCrystal
+   */
+    
+    // PIN in Option "anti_oxidation"
+    int soilMoisturePin1 = 4;    // VCC not to 5 Volts - in this Option to Digital Output 4
+    int soilMoisturePin2 = 3;    // GND not to GND - in this Option to Digital Output 3
+    int soilMoisturePin3 = A0;   // SIGNAL an einen Analog Pin vom Arduino Board
+    int baudrate = 9600;
+    
+    // 1023 = 100% RAW-Wert is between 0 wet and 1023 dry on 5 Volt
+    //  901 = 100% RAW-Wert is between 0 wet and  903 dry on VIN Volt
+    //  672 = 100% RAW-Wert is between 0 wet and  672 dry on 3,3 Volt
+    // The sensor returned 18% with RAW 188 when fully sunk into the water and light wave movements.
+    const int dry = 1023;
+    
+    const int relayPin = 6;  // SIGNAL from Relay
+    int pump_threshold = 70; // it soil DRY >=70% then activate a pump
+    
+    int tank_threshold = 38; // if distance in cm from Ultrasonic Sensor >=38 could be that pump not working because no enough water in tank
+       
+    // initialize the library with the numbers of the interface pins
+    LiquidCrystal lcd(12, 11, 10, 9, 8, 7);
+        
+    // Pin Definitions
+    #define trigPin	1
+    #define echoPin	2
+  
+
+    void setup() 
+    {
+      Serial.begin(baudrate);
+      while(!Serial); //Waiting for Serial connection
+      pinMode(soilMoisturePin1, OUTPUT);
+      pinMode(soilMoisturePin2, OUTPUT);
+      pinMode(relayPin, OUTPUT); //Set pin 6 as an OUTPUT
+      digitalWrite(relayPin, LOW); // Relay off - no pump at start
+      pinMode(trigPin, OUTPUT); // Set pin 1
+      pinMode(echoPin, INPUT);  // Set pin 2
+      
+       // set up the LCD's number of columns and rows:
+      lcd.begin(16, 2);
+    }
+    
+    int readSoilMoisture()
+    // Das größte Problem eines Feuchtigkeitssensors ist Oxidation. Der Korrosion wird durch Elektrolyse entgegengewirkt mit dieser Funktion.
+    // Diese Funktion aktiviert unseren Soil Moisture Sensor für 500ms, liest den aktuellen Wert aus, dreht die Polarität um und deaktiviert den Sensor wieder.
+    // The biggest problem of a moisture sensor is oxidation. Corrosion is counteracted by electrolysis with this function.
+    // This function activates our Soil Moisture Sensor for 500ms, reads the current value, rotates the polarity, and deactivates the sensor.
+    
+    {
+    int value; 
+    digitalWrite(soilMoisturePin1, HIGH);
+    digitalWrite(soilMoisturePin2, LOW);
+    delay(500); // es wird jede 0,5 sec gemessen - dies könnte auch deutlich seltener eingestellt werden
+    value = analogRead(soilMoisturePin3);
+    digitalWrite(soilMoisturePin1, LOW);
+    digitalWrite(soilMoisturePin2, HIGH);
+    delay(500);
+    digitalWrite(soilMoisturePin2, LOW);
+    return value;
+    }
+    
+    void loop() 
+    {
+      // step 1a - read the soil moisture
+      int value_water = readSoilMoisture(); 
+      String water = String((int)((((double)value_water/dry)*100.0)));//Convert Raw value to percentage. This is a generic calculation, depending on raw values from 0 to 1023. 
+      
+      Serial.print("Soil moisture: ");
+      Serial.print(water);
+      Serial.println("%");
+      Serial.print("Raw value: ");
+      Serial.println(value_water);
+
+      // step 1b - inform the user - set the cursor to column 0, line 0
+      lcd.setCursor(0, 0);
+      lcd.noBlink();
+      lcd.print("Trocken: "); lcd.print(water); lcd.print("/"); lcd.print(pump_threshold); lcd.print("%");
+      
+      // step 2a - read the waterdistance
+      long duration, distance;
+      digitalWrite(trigPin, LOW);  
+      delayMicroseconds(2); 
+      digitalWrite(trigPin, HIGH);
+      delayMicroseconds(10); 
+      digitalWrite(trigPin, LOW);
+      duration = pulseIn(echoPin, HIGH);
+      distance = (duration/2) / 29.1;
+        
+      Serial.print("Tank: ");
+      Serial.print(distance);
+      Serial.println(" cm");
+  
+      // step 2b - inform the user - set the cursor to column 0, line 1
+      lcd.setCursor(0, 1);
+      lcd.noBlink();
+      lcd.print("Tank: "); lcd.print(distance); lcd.print("/"); lcd.print(tank_threshold); lcd.print("cm");
+      
+      delay(500); // LCD Refresh
+      
+      // step 3a - Validate the Distance  - check the right position from UltraSonic Sensor
+      if (distance >= 200 || distance <= 0){
+        Serial.println("Out of range! Check position from UltraSonic Sensor");
+        digitalWrite(relayPin, LOW);
+        lcd.setCursor(0, 1);
+        lcd.print("distance problem");
+        delay(3000);
+        lcd.clear();
+      }
+      else
+      {
+        // step 3b - Validate the thresholds
+        // Change String2Integer and check if threshold is reached
+        // && = AND     || = OR
+        if ((water.toInt() >= pump_threshold) && (distance <= tank_threshold)) 
+        {
+        Serial.println("Too dry, we should water it.");
+        digitalWrite(relayPin, HIGH);
+        lcd.setCursor(0, 1);
+        lcd.blink();
+        lcd.setCursor(4, 1);
+        lcd.print("WATERING");
+        delay(3000);
+        }
+        else if ((water.toInt() >= pump_threshold) && (distance >= tank_threshold))
+        {
+        Serial.println("Too dry, but NOT ENOUGH WATER in TANK - ALARM!");
+        digitalWrite(relayPin, LOW); // we do not activate the pump - we dont have enough water in tank
+        lcd.setCursor(0, 1);
+        lcd.print("no water in tank");
+        delay(3000);
+        lcd.clear();
+        }
+        else if ((water.toInt() <= pump_threshold) && (distance >= tank_threshold))
+        {
+        Serial.println("It is wet enough, but NOT ENOUGH WATER in TANK - you should fill up!");
+        digitalWrite(relayPin, LOW); // we do not activate the pump - we dont have enough water in tank
+        lcd.setCursor(0, 1);
+        lcd.print("no water in tank");
+        delay(3000);
+        lcd.clear();
+        }
+        else
+        {  
+        Serial.println("It is wet enough, no need to water it.");
+        digitalWrite(relayPin, LOW);
+        }
+        
+      }
+      
+    }
+
+    
+
+
+
+
+
+
+
+
