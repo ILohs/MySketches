@@ -1,2 +1,2 @@
 # MySketches
-Arduino % Particle Sketches
+Arduino & Particle Sketches
