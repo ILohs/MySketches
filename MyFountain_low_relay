@@ -1,0 +1,145 @@
+// MyFountain / MySpringbrunnen v1.0 - Ingo Lohs
+// Liest Temperatur & Feuchte und ein Relay schaltet entsprechend einen Zimmerspringbrunnen zur Befeuchtung ein, sobald der Schwellwert unterschritten wurde.
+// Blynk: 2x Gauge (Temp V6, Humi V5), 1x Button for Relay V3, 1x History Graph with bindings on V6, V5, V4, 1x Slider to change Humi-Threshold V2
+
+// Verbesserungen:
+// Abschaltung während eines bestimmten Nachtfensters - der Motor der Pumpe kann unter Umständen zu einer Störung des Schlafs führen
+// https://community.particle.io/t/sleep-mode-explained-using-code-samples/21173/4
+// Lösung mit System.Sleep zwischen einer Auswahluhrzeit von bis.
+
+// Wie in Wohnräumen, wo sich der Bewohner meist sitzend für mehrere Stunden aufhält, sollte auch im Arbeitszimmer beziehungsweise im Büro die
+// Luftfeuchtigkeit zwischen 40 und 60 % liegen. Eine Raumfeuchtigkeit von 50 % ist für die Gesundheit des Menschen ideal.
+
+
+#include <Adafruit_DHT.h>
+#include <blynk.h>
+
+// Relay is a LOW LEVEL: action is on LOW!!! connectet on 3,3V
+
+    int baudrate = 9600;              // Serial Monitor 
+    #define relayPin D4               // SIGNAL from Relay
+    #define internalLED D7            // internal Device LED from Spark Core or Particle Photon
+    float humidity_threshold = 50.00; // if humidity DRY <= Thresshold then activate a pump to water a room-fountain
+    
+    // DHT parameters
+    #define DHTPIN D5                 // what pin we´re connected to the DHT22
+    #define DHTTYPE DHT22             // DHT 22 (AM2302)
+    // DHT sensor
+    DHT dht(DHTPIN, DHTTYPE);
+    float temperature;
+    float humidity;
+    unsigned long lastmillis = 0;
+    
+    // You should get Auth Token in the Blynk App.
+    // Go to the Project Settings (nut icon).
+    char auth[] = "67c2b39a792e4ced863b41c8b62323e6";
+    #define vRelayBtn V3
+    unsigned int vRelayStatus; // global var
+    #define vThresholdSlider V2
+
+// *********    
+
+    BLYNK_WRITE(vRelayBtn) {     // Blynk app WRITES button status to server
+    vRelayStatus = param.asInt();
+    if(vRelayStatus == 1){
+    digitalWrite(relayPin, LOW);
+    digitalWrite(internalLED, HIGH); // internal LED on
+    Serial.println("Relay is now ON");    
+    }
+    else {
+    digitalWrite(relayPin, HIGH); 
+    digitalWrite(internalLED, LOW); 
+    Serial.println("Relay is now OFF");   
+    }
+    }
+
+// *********    
+
+    BLYNK_WRITE(vThresholdSlider)     // Blynk app WRITES Slider widget (0...100) on V2
+    {
+    humidity_threshold = param.asInt();
+    Serial.println("******************************");    
+    Serial.print(humidity_threshold);    
+    Serial.println(" % = new Humidity Threshold");    
+    Serial.println("******************************");    
+    }
+    
+// *********  
+
+    void setup() 
+    {
+      Serial.begin(baudrate); // Serial Debug Console: CMD - particle serial monitor --follow on Windows or MAC: Terminal - ls /dev/tty.* - screen /dev/tty.usbmodem1411
+      while(!Serial); //Waiting for Serial connection
+      pinMode(relayPin, OUTPUT); //Set pin D4 as an OUTPUT
+      pinMode(internalLED, OUTPUT); //Set pin D7 as an OUTPUT
+      digitalWrite(relayPin, HIGH); // Relay off - no pump at start
+      digitalWrite(internalLED, LOW); // internal LED off
+      delay(5000); // lets the DHT sensor settle setup 
+      Blynk.begin(auth); // Blynk magic starts here
+      dht.begin(); // Start DHT sensor
+    }
+
+// *********    
+
+    void loop() 
+    {
+    Blynk.run();    
+//    Blynk.virtualWrite(V4, humidity_threshold); 
+//    !!! http://docs.blynk.cc/#troubleshooting-flood-error  
+//    DO NEVER in LOOP!
+
+            // DHT22 is a slow sensor - update in 2 sec intervals
+            if ((millis() - lastmillis) > 2000) {
+                lastmillis = millis();
+                readData();
+                executeRelay();
+                update_HumiThreshold();
+            }
+    }
+
+// *********    
+
+    void readData()
+    {
+        // Temp measurement - in this case optional
+      temperature = dht.getTempCelcius(); // dht.getTempFarenheit(); change if you like 
+      Serial.print(temperature);
+      Serial.println(" Grad Celsius");
+        // Humidity measurement
+      humidity = dht.getHumidity();
+      Serial.print(humidity, 2); // #.##
+      Serial.println(" % Feuchtigkeit");
+      
+        // You can send any value at any time.
+        // Please don't send more that 10 values per second.
+      Blynk.virtualWrite(V5, humidity);
+      Blynk.virtualWrite(V6, temperature);
+    }
+
+// *********    
+    
+    void executeRelay()
+    {
+      if (vRelayStatus != 1) 
+    {
+      if ((humidity) <= humidity_threshold) 
+        {
+        Serial.println("Humidity in the room is too dry, we should activate the fountain.");
+        digitalWrite(relayPin, LOW); // relay start
+        digitalWrite(internalLED, HIGH);
+        }
+      else
+        {  
+        Serial.println("The room is wet enough, no need to active the fountain.");
+        digitalWrite(relayPin, HIGH); // relay offline
+        digitalWrite(internalLED, LOW);
+        }
+    }
+    }
+ 
+// *********       
+    
+    void update_HumiThreshold() 
+    {
+    Blynk.virtualWrite(V4, humidity_threshold); 
+    }
