@@ -1,0 +1,95 @@
+#include "Particle.h"
+#include "Adafruit_BME280.h"
+#include "Adafruit_Sensor.h"
+#include "Adafruit_SSD1306.h"
+#include <math.h> // isnan()
+
+Adafruit_BME280 bme; // I2C
+//#define OLED_RESET D4
+//Adafruit_SSD1306 display(OLED_RESET);
+Adafruit_SSD1306 display(-1);
+
+const unsigned long UPDATE_PERIOD_MS = 2000;
+
+// I2C wiring
+#define BME_MOSI D0
+#define BME_SCK D1
+
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+unsigned long lastUpdate = 0;
+char buf[64];
+
+void setup() {
+	Serial.begin(9600);
+	
+    Serial.println(F("BME280 + OLEDisplay 128x64"));
+
+    if (bme.begin()) {
+        Serial.println("BME280 sensor works!");
+    }
+	
+	display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+
+    display.display(); // show splashscreen
+    delay(2000);
+    display.clearDisplay();   // clears the screen and buffer
+
+    Time.zone(+2.00);  // setup a time zone, which is part of the ISO6801 format 
+}
+
+
+void loop() { 
+	if (millis() - lastUpdate >= UPDATE_PERIOD_MS) {
+		lastUpdate = millis();
+		
+    	Serial.print("Temperature = ");
+    	float temp = bme.readTemperature(); // degrees C
+        Serial.print(temp);
+        Serial.println(" *C");
+    
+        Serial.print("Pressure = ");
+    	float pressure = (bme.readPressure() / 100.0F); // hPa
+        Serial.print(pressure);
+        Serial.println(" hPa");
+    
+        Serial.print("Approx. Altitude = ");
+        float altitude = (bme.readAltitude(SEALEVELPRESSURE_HPA)); 
+        Serial.print(altitude);
+        Serial.println(" m");
+    
+        Serial.print("Humidity = ");
+        float humidity = bme.readHumidity(); // % 
+        Serial.print(humidity);
+        Serial.println(" %");
+		
+	if (!isnan(temp) && !isnan(humidity)) {
+	    
+	    	display.clearDisplay();
+		    
+			display.setTextSize(2);
+			display.setTextColor(WHITE);
+			display.setCursor(0,0);
+//			display.println("Hello, world!");
+
+			snprintf(buf, sizeof(buf), "%.2f C", temp);
+			display.println(buf);
+
+			//snprintf(buf, sizeof(buf), "%.1f F", temp * 9.0 / 5.0 + 32.0);
+			//display.println(buf);
+
+			snprintf(buf, sizeof(buf), "%.2f %%", humidity);
+			display.println(buf);
+			
+//			snprintf(buf, sizeof(buf), "%.1f %% hPa", pressure);
+//			display.println(buf);
+
+//			snprintf(buf, sizeof(buf), "%.1f %% m", altitude);
+//			display.println(buf);
+
+            display.println(Time.format(Time.now(), "%H:%M h"));
+           	
+  		}
+		display.display();
+	}
+}
