@@ -1,0 +1,122 @@
+// Ingo Lohs, Light-Clock with Adafruit Neopixel Ring 12 controlled by Particle Photon 
+// v1.0, 12.06.2017
+
+#include <neopixel.h>
+
+// IMPORTANT: Set pixel COUNT, PIN and TYPE
+#define PIXEL_COUNT 12
+#define PIXEL_PIN D2
+#define PIXEL_TYPE WS2812B
+
+int brightness_h = 10;        // 0-256 nonbright to bright
+int brightness_m = 10;        // 0-256 nonbright to bright
+int delayval = 1000;          // update scene
+int min_px;                   // minute-pixel
+int h;                        // hour
+unsigned color_m;             // minute-color
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXEL_COUNT, PIXEL_PIN, PIXEL_TYPE);  // Instance the object
+
+void setup() {
+  Serial.begin(9600);
+  Time.zone (+2.00); // setup a timezone > in this case Berlin
+  strip.begin();
+}
+
+   /* the colors
+    * yellow - 128,128,0
+    * orange - 255,128,0
+    * red    - 255,0,0
+    * green  - 0,255,0
+    * blue   - 0,0,255
+    * purple - 128,0,128
+    */
+
+void loop() {
+    
+    if (Time.hourFormat12() == 12) {  // neopixel not count from 1-12 like the time-function. we need to change 12 o´clock to pixel 0
+    h = 0;
+    } else {
+    h = Time.hourFormat12(); // https://docs.particle.io/reference/firmware/photon/#hourformat12- - returns integer 1-12
+    } 
+    Serial.println("**********VALIDATION HOUR******************************");
+    Serial.print("Device-Function: ");
+    Serial.println(Time.hourFormat12());
+    Serial.print("Hour: ");
+    Serial.println(h);
+
+    int m = Time.minute();
+    
+    strip.clear(); // all already switched pixel turned off
+
+    if (m<5) {
+      min_px = 0;                   // 0 = first of in this case 12 pixel
+      color_m = (0,0,255);          // blue
+    } else if (m >= 5 && m<10) {
+      min_px = 1;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 10 && m<15) {
+      min_px = 2;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 15 && m<20) {
+      min_px = 3;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 20 && m<25) {   
+      min_px = 4;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 25 && m<30) {
+      min_px = 5;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 30 && m<35) {
+      min_px = 6;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 35 && m<40) {
+      min_px = 7;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 40 && m<45) {
+      min_px = 8;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 45 && m<50) {
+      min_px = 9;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 50 && m<55) {
+      min_px = 10;        
+      color_m = (0,0,255);          // blue
+    } else if (m >= 55) {
+      min_px = 11;        
+      color_m = (0,0,255);          // blue
+    }
+    
+    if (h == min_px) {
+      Serial.println("***********EXCEPTION CASE: HOUR = Range of Minute-Pixel");
+      Serial.print("Hour: ");
+      Serial.println(h);
+      Serial.print("Minute: ");
+      Serial.println(m);
+      Serial.print("Minute-Range: ");
+      Serial.println(min_px);
+      Serial.println("hour and minute-range is equal - you see 1 pixel bright");
+
+      strip.setPixelColor(h,128,128,0); // h: 1 Pixel in Yellow if hour and minute-range is equal      
+      strip.setBrightness(brightness_h);    
+      strip.show();
+    } else {
+      Serial.println("**********NORMAL CASE: HOUR <> Range of Minute-Pixel***");
+      Serial.print("Hour: ");
+      Serial.println(h);
+      Serial.print("Minute: ");
+      Serial.println(m);
+      Serial.print("Minute-Range: ");
+      Serial.println(min_px);
+      Serial.println("hour and minute-range is NOT equal - you see 2 pixels bright");
+
+      strip.setPixelColor(h,255,0,0); // h: 1 Pixel in Red
+      strip.setBrightness(brightness_h);    
+      strip.show();
+      
+      strip.setPixelColor(min_px, color_m); // min_px: 1 Pixel represents a period from 5 min
+      strip.setBrightness(brightness_m);
+      strip.show();
+    }
+      delay(delayval);
+}
