@@ -1,0 +1,235 @@
+// Ingo Lohs, Light-Clock with Adafruit Neopixel Ring 12 controlled by Particle Photon 
+// v1.1, 13.06.2017
+// Change to 3 integer data-types for RBG to config Hour and Minute with individual colors 
+// Preparing to config a second WIFI-Network in Remarks 
+// reducing to one brightness-value also for hour and minute
+
+#include <neopixel.h>
+
+//SYSTEM_MODE(SEMI_AUTOMATIC)
+
+
+// IMPORTANT: Set pixel COUNT, PIN and TYPE
+#define PIXEL_COUNT 12
+#define PIXEL_PIN D2
+#define PIXEL_TYPE WS2812B
+
+
+int brightness = 5;           // 0-255 nonbright to bright
+int delayval = 1000;          // update scene
+int min_px;                   // minute-pixel
+int h;                        // hour
+int R_h;                      // color-Definitions for hour and minute in RGB and if hour and minute-range is equal
+int G_h;
+int B_h;
+int R_m;
+int G_m;
+int B_m;
+int R_equal = 128;
+int G_equal = 128;            // yellow
+int B_equal = 0;
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(PIXEL_COUNT, PIXEL_PIN, PIXEL_TYPE);  // Instance the object
+
+void setup() {
+  // Connects to a network with a specified authentication procedure.
+  // Options are WPA2, WPA, or WEP.
+  // WiFi.setCredentials("SSID", "PASSWORD", WPA2);
+    
+  // WiFi.connect(); 
+  // while(Serial.read() < 0 && millis() < 10000) Particle.process(); // this waits here till you connect via Serial and hit a key (or max 10sec)
+  
+//  if (!waitFor(WiFi.ready, 10000))
+//    Serial.println("Not able to connect to WiFi for 10sec");
+//  else
+//  {
+//    Serial.print("Here we go SSID: ");
+//    Serial.println(WiFi.SSID());
+//  }
+    
+    
+  Serial.begin(9600);
+  Time.zone (+2.00); // setup a timezone > in this case Berlin
+  strip.begin();
+}
+
+   /* the colors
+    * yellow - 128,128,0
+    * orange - 255,128,0
+    * red    - 255,0,0
+    * green  - 0,255,0
+    * blue   - 0,0,255
+    * purple - 128,0,128
+    */
+
+void loop() {
+    
+    if (Time.hourFormat12() == 12) {  // neopixel not count from 1-12 like the time-function. we need to change 12 o´clock to pixel 0
+    h = 0;
+    } else {
+    h = Time.hourFormat12(); // https://docs.particle.io/reference/firmware/photon/#hourformat12- - returns integer 1-12
+    } 
+    Serial.println("**********VALIDATION HOUR******************************");
+    Serial.print("Device-Function: ");
+    Serial.println(Time.hourFormat12());
+    Serial.print("Hour: ");
+    Serial.println(h);
+
+    int m = Time.minute();
+    
+    strip.clear(); // all already switched pixel turned off
+
+    if (m<5) {
+      min_px = 0;  // 0 = first of in this case 12 pixel
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 5 && m<10) {
+      min_px = 1;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 10 && m<15) {
+      min_px = 2;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 15 && m<20) {
+      min_px = 3;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 20 && m<25) {   
+      min_px = 4;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 25 && m<30) {
+      min_px = 5;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 30 && m<35) {
+      min_px = 6;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 35 && m<40) {
+      min_px = 7;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 40 && m<45) {
+      min_px = 8;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 45 && m<50) {
+      min_px = 9;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 50 && m<55) {
+      min_px = 10;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    } else if (m >= 55) {
+      min_px = 11;        
+        R_m = 0;
+        G_m = 0;   // blue
+        B_m = 255;
+    }
+    
+    /* the colors
+    * yellow - 128,128,0
+    * orange - 255,128,0
+    * red    - 255,0,0
+    * green  - 0,255,0
+    * blue   - 0,0,255
+    * purple - 128,0,128
+    */
+    
+    if (h==0) {
+        R_h = 255;
+        G_h = 0;   // red at 12
+        B_h = 0;
+    } else if (h==1) {
+        R_h = 255;
+        G_h = 128; // orange at 1
+        B_h = 0;
+    } else if (h==2) {
+        R_h = 128;
+        G_h = 0;   // purple at 2 
+        B_h = 128;
+    } else if (h==3) {
+        R_h = 255;
+        G_h = 0;   // red at 3
+        B_h = 0;
+    } else if (h==4) {   
+        R_h = 128;
+        G_h = 0;   // purple at 4
+        B_h = 128;
+    } else if (h==5) {
+        R_h = 255;
+        G_h = 128;   // orange at 5
+        B_h = 0;
+    } else if (h==6) {
+        R_h = 255;
+        G_h = 0;   // red at 6
+        B_h = 0;
+    } else if (h==7) {
+        R_h = 255;
+        G_h = 128; // orange at 7
+        B_h = 0;
+    } else if (h==8) {
+        R_h = 128;
+        G_h = 0;   // purple at 8
+        B_h = 128;
+    } else if (h==9) {
+        R_h = 255;
+        G_h = 0;   // red at 9
+        B_h = 0;
+    } else if (h==10) {
+        R_h = 128;
+        G_h = 0;   // purple at 10
+        B_h = 128;
+    } else if (h==11) {
+        R_h = 255;
+        G_h = 128;   // orange at 11
+        B_h = 0;
+    }
+    
+    if (h == min_px) {
+      Serial.println("***********EXCEPTION CASE: HOUR = Range of Minute-Pixel");
+      Serial.print("Hour: ");
+      Serial.println(h);
+      Serial.print("Minute: ");
+      Serial.println(m);
+      Serial.print("Minute-Range: ");
+      Serial.println(min_px);
+      Serial.println("hour and minute-range is equal - you see 1 pixel bright");
+      
+      // Display
+      strip.setPixelColor(h, R_equal, G_equal, B_equal); // h: 1 Pixel in Yellow if hour and minute-range is equal      
+      strip.setBrightness(brightness);    
+      strip.show();
+    } else {
+      Serial.println("**********NORMAL CASE: HOUR <> Range of Minute-Pixel***");
+      Serial.print("Hour: ");
+      Serial.println(h);
+      Serial.print("Minute: ");
+      Serial.println(m);
+      Serial.print("Minute-Range: ");
+      Serial.println(min_px);
+      Serial.println("hour and minute-range is NOT equal - you see 2 pixels bright");
+         
+      // Display
+      strip.setPixelColor(h, R_h, G_h, B_h); // h: 1 Pixel 
+      strip.setPixelColor(min_px, R_m, G_m, B_m); // min_px: 1 Pixel represents a period from 5 min
+      strip.setBrightness(brightness);
+
+    }
+      strip.show();
+      delay(delayval);
+}
