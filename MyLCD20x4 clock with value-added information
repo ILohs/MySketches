@@ -1,0 +1,156 @@
+// Ingo Lohs, myclock-bme280-lcd-i2c works with Particle Photon v0.6.2
+// a digital watch with BME280 on I2C
+// 08.07.2017, v1.0
+
+// LIBs
+#include <Adafruit_BME280.h>
+#include <LiquidCrystal_I2C_Spark.h>
+
+// Objects
+LiquidCrystal_I2C *lcd;
+Adafruit_BME280 bme; // I2C
+
+// Definitions
+const unsigned long UPDATE_PERIOD_MS = 5000;
+unsigned long lastUpdate = 0;
+
+// I2C wiring
+#define BME_MOSI D0
+#define BME_SCK D1
+
+// Druck auf NormalNull - Meerwasser-Spiegel
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+// for the values
+char buf[64];
+String Wochentag;
+
+// *********************************
+
+void setup()
+{
+    Serial.begin(9600);
+    
+    Serial.println(F("BME280 + LCDisplay 1602 / 2004"));
+
+    if (bme.begin()) {
+        Serial.println("BME280 sensor works!");
+    }
+    
+    // The address is typically 0x27. I2C Address: 0x3F
+    // https://www.sainsmart.com/new-sainsmart-iic-i2c-twi-1602-serial-lcd-module-display-for-arduino-uno-mega-r3.html
+    lcd = new LiquidCrystal_I2C(0x3F /*address*/, 20 /*columns*/, 4/*rows*/); // > for LCD2004
+    lcd->init();
+    lcd->backlight();
+    lcd->clear();
+    Time.zone(+2.00); // setup a time zone, which is part of the ISO6801 format 
+}
+    
+// *********************************
+
+void loop() { 
+
+  lcd->setCursor(0 /*columns*/,0 /*rows*/);
+  lcd->print(Time.format(Time.now(), "%d.%m.%y")); // %A für Weekday = English Output
+  
+  // https://docs.particle.io/reference/firmware/photon/#weekday-
+  int wDayName = Time.weekday();
+  
+  if (wDayName != wDayName)
+  {
+      lcd->clear();
+  }
+  
+  if (wDayName == 1) 
+  {
+      Wochentag = "Sonntag";
+  }
+  else if (wDayName == 2) 
+  {
+      Wochentag = "Montag";
+  }
+  else if (wDayName == 3) 
+  {
+      Wochentag = "Dienstag";
+  }
+  else if (wDayName == 4) 
+  {
+      Wochentag = "Mittwoch";
+  }
+  else if (wDayName == 5) 
+  {
+      Wochentag = "Donnerstag";
+  }
+  else if (wDayName == 6) 
+  {
+      Wochentag = "Freitag";
+  }
+   else if (wDayName == 7) 
+  {
+      Wochentag = "Samstag";
+  }
+   
+  lcd->setCursor(9,0);
+  lcd->print(Wochentag);
+  
+  lcd->setCursor(0,1);
+  lcd->print(Time.format(Time.now(), "KW: %W"));
+  lcd->setCursor(9,1);
+  lcd->print(Time.format(Time.now(), "%H:%M:%S"));
+
+    // read the BME280 sensor
+	if (millis() - lastUpdate >= UPDATE_PERIOD_MS) {
+		lastUpdate = millis();
+		
+    	Serial.print("Temperature = ");
+    	float temp = bme.readTemperature(); // degrees C
+        Serial.print(temp);
+        Serial.println(" *C");
+
+        Serial.print("Humidity = ");
+        float humidity = bme.readHumidity(); // % 
+        Serial.print(humidity);
+        Serial.println(" %");
+    
+        Serial.print("Approx. Altitude = ");
+        float altitude = (bme.readAltitude(SEALEVELPRESSURE_HPA)); 
+        Serial.print(altitude);
+        Serial.println(" m");
+    
+        Serial.print("Pressure = ");
+    	float pressure = (bme.readPressure() / 100.0F); // hPa
+        Serial.print(pressure);
+        Serial.println(" hPa");
+
+        // check for value
+		if (temp != NULL) {
+	    
+	        // print out to LCD 
+			snprintf(buf, sizeof(buf), "%.2f C", temp);
+			lcd->setCursor(0,2);
+			lcd->print(buf);
+
+			//snprintf(buf, sizeof(buf), "%.1f F", temp * 9.0 / 5.0 + 32.0);
+
+			snprintf(buf, sizeof(buf), "%.2f %%", humidity);
+            lcd->setCursor(9,2);
+			lcd->print(buf);
+
+			snprintf(buf, sizeof(buf), "%.1f % m", altitude);
+			lcd->setCursor(0,3);
+			lcd->print(buf);
+
+			snprintf(buf, sizeof(buf), "%.1f %%hPa", pressure);
+			lcd->setCursor(9,3);
+			lcd->print(buf);
+        
+        // in case of error during sensor reading
+       	}
+      	else {
+      	    lcd->clear();
+		    lcd->setCursor(0,0);
+			lcd->print("Problem with BME280!");
+      	}
+  		
+	}
+}
