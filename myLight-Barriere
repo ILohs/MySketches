@@ -1,0 +1,60 @@
+// Ingo Lohs, Arduino Uno/Nano, Photo-Resistor, Laser, 3 LEDs green, yellow, red, breadboard, jumper, 3x 220 Ohm to protect LEDs
+// Lichtschranke v1.0
+// 07.07.2017  
+
+int threshold = 170;        // if direct Laser Light on photo-resistor we got values between 156-169 bei 10k Resistor without a marble
+int threshold_border = 180; // slight deviation / geringe Abweichung - falls Laser nur geringfügig gestreift wird
+int count_yellow = 0;       // Counter for the Thresholds
+int count_red = 0;          // Counter for the Thresholds
+
+void setup() {
+  pinMode(7,OUTPUT);  // yellow control LED
+  pinMode(8,OUTPUT);  // green control LED
+  pinMode(9,OUTPUT);  // Laser
+  pinMode(10,OUTPUT); // red control LED
+  pinMode(11,OUTPUT); // Buzzer
+  pinMode(A0,INPUT);  // 10k Photo-Resistor
+  Serial.begin(9600);
+  delay(5000);        // settle the Photo-Resistor
+}
+
+void loop() {
+ 
+    digitalWrite(9,HIGH);              
+    
+    int sensorValue = analogRead(A0); 
+    //Serial.println(sensorValue);
+
+ if ((sensorValue >= threshold) && (sensorValue <= threshold_border)) {  // direct Laser Light = 156-160 bei 10k Resistor ohne Murmel
+   count_yellow++;
+   Serial.print("interrupted by value: ");
+   Serial.print(sensorValue);
+   Serial.println(" yellow");
+   Serial.print("yellow-Counter: ");
+   Serial.println(count_yellow);
+   digitalWrite(8, LOW);   // turn the green LED off
+   digitalWrite(7, HIGH);   // turn the red LED on 
+   //digitalWrite(11, HIGH);  // Buzzer on
+   delay(500);                       // wait for a second
+   digitalWrite(7, LOW);    // turn the red LED off 
+   //digitalWrite(11, LOW);     // Buzzer off
+ } else if (sensorValue > threshold_border)
+ {
+   count_red++;
+   Serial.print("interrupted by value: ");
+   Serial.print(sensorValue);
+   Serial.println(" red");
+   Serial.print("red-Counter: ");
+   Serial.println(count_red);
+   digitalWrite(8, LOW);   // turn the green LED off
+   digitalWrite(10, HIGH);   // turn the red LED on 
+   digitalWrite(11, HIGH);  // Buzzer on
+   delay(500);                       // wait for a second
+   digitalWrite(10, LOW);    // turn the red LED off 
+   digitalWrite(11, LOW);     // Buzzer off
+ } else
+ {
+   digitalWrite(8, HIGH);   // turn the gree LED on 
+ }
+  
+}
