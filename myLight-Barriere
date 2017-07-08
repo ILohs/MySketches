@@ -35,7 +35,7 @@ void loop() {
    digitalWrite(8, LOW);   // turn the green LED off
    digitalWrite(7, HIGH);   // turn the red LED on 
    //digitalWrite(11, HIGH);  // Buzzer on
-   delay(500);                       // wait for a second
+   delay(500);                       // wait for a half-second
    digitalWrite(7, LOW);    // turn the red LED off 
    //digitalWrite(11, LOW);     // Buzzer off
  } else if (sensorValue > threshold_border)
@@ -54,7 +54,7 @@ void loop() {
    digitalWrite(11, LOW);     // Buzzer off
  } else
  {
-   digitalWrite(8, HIGH);   // turn the gree LED on 
+   digitalWrite(8, HIGH);   // turn the green LED on 
  }
   
 }
