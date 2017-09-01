@@ -1,6 +1,7 @@
 // Ingo Lohs, myclock-bme280-lcd-i2c works with Particle Photon v0.6.2
 // a digital watch with BME280 on I2C
 // 08.07.2017, v1.0
+// 26.08.2017, v1.1 add a check for time to clear the LCD Display - else the Weekname will burn into LCD, example Donnerstag is longer then Freitag
 
 // LIBs
 #include <Adafruit_BME280.h>
@@ -52,6 +53,11 @@ void loop() {
 
   lcd->setCursor(0 /*columns*/,0 /*rows*/);
   lcd->print(Time.format(Time.now(), "%d.%m.%y")); // %A für Weekday = English Output
+  
+  if ((Time.format(Time.now(), "%H:%M:%S")) == "00:00:00")
+  {
+        lcd->clear();
+  }
   
   // https://docs.particle.io/reference/firmware/photon/#weekday-
   int wDayName = Time.weekday();
