@@ -1,0 +1,215 @@
+// Ingo Lohs
+// MyPlant-Informer v1.0, 07.09.2017
+// works with Photon v0.7.0-rc.1
+// optional: accustic warning if case of DRY with a buzzer 
+// optional: ifttt
+
+#include <Adafruit_SSD1306.h>                 // This #include statement was automatically added by the Particle IDE.
+#include <blynk.h>                            // This #include statement was automatically added by the Particle IDE.
+
+#define soilMoisturePlant1 A0                 // SIGNAL from Soil Moisture Sensor to INPUT A0 - Plant1: "Minze"
+#define soilMoisturePlant2 A1                 // SIGNAL from Soil Moisture Sensor to INPUT A1 - Plant2: "Feigenbaum"
+String namePlant1 = "Minze";                  // your name of the plants
+String namePlant2 = "Feige";
+String status = "Plant is OK";                // Trigger IFTTT if status will change in case of DRY
+const int threshold_plant1 = 80;              // define when its DRY for Plant1
+const int threshold_plant2 = 75;              // define when its DRY for Plant2       
+int baudrate = 9600;                          // Serial Monitor 
+const int dry = 4095;                         // presents 100% in case of Spark Core or Particle Photon at A0/A1 if sensor is full dry and also 0 = full wet 
+int water1, water2;                           // set to global var
+int value_water_Plant1, value_water_Plant2;   // set to global var
+unsigned long lastmillis = 0;                 // time for interation the loop
+// I2C wiring 
+#define BME_MOSI D0                           // = SDA 
+#define BME_SCK D1                            // = SCL 
+
+Adafruit_SSD1306 display(-1);
+
+// You should get Auth Token in the Blynk App.
+// Go to the Project Settings (nut icon).
+char auth[] = "b3dd41cd69144053a19fb573db13e0d7";
+
+// *********  
+
+WidgetLED led1(V5);
+
+// *********  
+
+WidgetLED led2(V6);
+
+// *********  
+
+void setup() {
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.display();                   // show splashscreen
+  delay(2000);
+  display.clearDisplay();              // clears the screen and buffer
+
+  Serial.begin(baudrate);
+  while(!Serial);                      // Waiting for Serial connection
+  pinMode(soilMoisturePlant1, INPUT);  // Set pin A0
+  pinMode(soilMoisturePlant2, INPUT);  // Set pin A1
+  
+  Particle.variable("Status", status);
+  
+  Blynk.begin(auth);                   // Blynk magic starts here
+}
+
+// *********  
+
+void loop() {
+    
+    Blynk.run();    
+    
+//    !!! http://docs.blynk.cc/#troubleshooting-flood-error  
+//    no delays in loop - DO NEVER in LOOP!
+    
+    if ((millis() - lastmillis) > 1000) {
+        lastmillis = millis();
+        readData();
+        displayData();
+    }
+}
+
+// *********  
+
+void readData() {
+    // step 1 - read the soil moisture Plant1
+    value_water_Plant1 = analogRead(soilMoisturePlant1); 
+    water1 = ((int)((((double)value_water_Plant1/dry)*100.0))); //Convert Raw value to percentage. This is a generic calculation, depending on raw values from 0 to 4095
+
+    // step 2 - read the soil moisture Plant2
+    value_water_Plant2 = analogRead(soilMoisturePlant2); 
+    water2 = ((int)((((double)value_water_Plant2/dry)*100.0))); //Convert Raw value to percentage. This is a generic calculation, depending on raw values from 0 to 4095
+      
+    // Data to Serial Monitor  
+    Serial.print("Soil moisture ");
+    Serial.print(namePlant1);
+    Serial.print(": ");
+    Serial.print(water1);
+    Serial.print(" %");
+    Serial.print(" - Raw value: ");
+    Serial.println(value_water_Plant1);
+
+    Serial.print("Soil moisture ");
+    Serial.print(namePlant2);
+    Serial.print(": ");
+    Serial.print(water2);
+    Serial.print(" %");
+    Serial.print(" - Raw value: ");
+    Serial.println(value_water_Plant2);
+    
+    Serial.println("...next value reading...");
+    
+    // Data to Blynk  
+    Blynk.virtualWrite(V1, water1);
+    Blynk.virtualWrite(V2, water2);
+    Blynk.virtualWrite(V3, threshold_plant1);
+    Blynk.virtualWrite(V4, threshold_plant2);
+    
+}
+
+// *********
+
+void displayData() {
+    // Interpretation-Table
+    // Range 5V: 0 - 4095
+    // example readings:
+    //  100 =   2% = wet
+    //  400 =  10% = wet
+    //  800 =  20% = OK
+    // 1000 =  24% = OK
+    // 1800 =  44% = OK
+    // 3000 =  73% = OK
+    // 4000 =  98% = dry
+    // 4095 = 100% = dry
+    		   
+    // OLE Display init 
+	display.setTextSize(2);  // 1 = mini
+	display.setTextColor(WHITE);
+	display.setCursor(0,0);
+	display.clearDisplay();
+
+    // Plant1
+ 
+   if (water1 <= 30)
+   { 
+       display.print(namePlant1);
+       display.print(": ");
+	   display.print(water1);
+	   display.print("%");
+	   display.println(" > SWIM");
+	   led1.on();          // on/off
+	   led1.setValue(255); // brightness
+	   Blynk.setProperty(V5, "color", "#12a3c7"); // blue
+   } 
+   else if ((water1 > 30) && (water1 <= 80)) // && = AND
+   { 
+       display.print(namePlant1);
+       display.print(": ");
+	   display.print(water1);
+	   display.print("%");
+	   display.println(" > OK");
+	   led1.on();          // on/off
+	   led1.setValue(255); // brightness
+	   Blynk.setProperty(V5, "color", "#12c727"); // green
+   } 
+   else if ((water1 > threshold_plant1) && (water1 <= 100)) // && = AND 
+   { 
+       display.print(namePlant1);
+       display.print(": ");
+	   display.print(water1);
+	   display.print("%");
+	   display.println(" > DRY");
+	   led1.on();          // on/off
+	   led1.setValue(255); // brightness
+	   Blynk.setProperty(V5, "color", "#d3345c"); // red
+   } 
+   else 
+   { 
+       display.println("cant read sensor A0!"); 
+   }  
+    
+   // Plant2
+    
+   if (water2 <= 30)
+   { 
+       display.print(namePlant2);
+       display.print(": ");
+	   display.print(water2);
+	   display.print("%");
+	   display.println(" > SWIM");
+	   led2.on();          // on/off
+	   led2.setValue(255); // brightness
+	   Blynk.setProperty(V6, "color", "#12a3c7"); // blue
+   } 
+   else if ((water2 > 30) && (water2 <= 80)) // && = AND
+   { 
+       display.print(namePlant2);
+       display.print(": ");
+	   display.print(water2);
+	   display.print("%");
+	   display.println(" > OK");
+	   led2.on();          // on/off
+	   led2.setValue(255); // brightness
+	   Blynk.setProperty(V6, "color", "#12c727"); // green
+   } 
+   else if ((water2 > threshold_plant2) && (water2 <= 100)) // && = AND 
+   { 
+       display.print(namePlant2);
+       display.print(": ");
+	   display.print(water2);
+	   display.print("%");
+	   display.println(" > DRY");
+	   led2.on();          // on/off
+	   led2.setValue(255); // brightness
+	   Blynk.setProperty(V6, "color", "#d3345c"); // red
+   } 
+   else 
+   { 
+       display.println("cant read sensor A1!"); 
+   }  
+   
+   // Output
+   display.display();
+}
