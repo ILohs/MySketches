@@ -27,7 +27,7 @@ Adafruit_SSD1306 display(-1);
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon).
-char auth[] = "b3dd41cd69144053a19fb573db13e0d7";
+char auth[] = "<< your blynk code here >>";
 
 // *********  
 
