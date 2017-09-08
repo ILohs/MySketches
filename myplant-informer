@@ -11,7 +11,6 @@
 #define soilMoisturePlant2 A1                 // SIGNAL from Soil Moisture Sensor to INPUT A1 - Plant2: "Feigenbaum"
 String namePlant1 = "Minze";                  // your name of the plants
 String namePlant2 = "Feige";
-String status = "Plant is OK";                // Trigger IFTTT if status will change in case of DRY
 const int threshold_plant1 = 80;              // define when its DRY for Plant1
 const int threshold_plant2 = 75;              // define when its DRY for Plant2       
 int baudrate = 9600;                          // Serial Monitor 
@@ -49,9 +48,7 @@ void setup() {
   while(!Serial);                      // Waiting for Serial connection
   pinMode(soilMoisturePlant1, INPUT);  // Set pin A0
   pinMode(soilMoisturePlant2, INPUT);  // Set pin A1
-  
-  Particle.variable("Status", status);
-  
+   
   Blynk.begin(auth);                   // Blynk magic starts here
 }
 
