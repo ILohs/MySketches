@@ -35,7 +35,7 @@ int choose_timezone;
 
 //Blynk*******************************************
 
-char auth[] = "9b8041313707474e9cea27b9b87667b7";
+char auth[] = "your Blnyc Code here";
 
 //Blynk*******************************************
 
