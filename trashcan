@@ -24,7 +24,7 @@ long distance, duration;           // UltraSonic values
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon).
-char auth[] = "2e7cfd33f2a449609212e82846c2ae61";
+char auth[] = "your Blynk code here";
 
 unsigned long lastmillis = 0;      // time for iteration the loop
 
