@@ -1,0 +1,111 @@
+// Reed-Switch with Particle Photon - works with v0.7.0-rc.3 without Libaries
+// Ingo Lohs, v1.0 v. 19.11.2017
+// Projekt, um über einen Signalton auf einen offenen Toiletten-Deckel hinzuweisen
+// es dient eher einer erzieherischen Massnahme die Toilette nicht über die Massen zu blockieren
+// Project to indicate a beep on an open toilet lid
+// it is more of an educational measure not to block the toilet from the masses
+
+// https://community.particle.io/t/cross-check-required/37466/6
+
+// ToDo:
+// * how often was the toilet used? Any ideas for a counter?
+// * how long was the lid actually open (measurement of time to see how the behavior changes over time)?
+
+    /* 
+             -----[    ]-----
+            -|VIN        3V3|-    
+     Buzzer -|GND        RST|-
+            -|TX        VBAT|-
+            -|RX         GND|-
+            -|WKP         D7|-
+            -|DAC         D6|-
+            -|A5          D5|-
+     Buzzer -|A4          D4|- reed switch
+            -|A3          D3|- 
+            -|A2          D2|- reed switch
+            -|A1          D1|- SCL
+            -|A0          D0|- SDA
+              \____________/
+             
+    */
+
+// **************
+
+#include "application.h"                      // necessary when using Timer
+
+const int REED_PIN_IN = D2;                   // Pin connected to reed switch
+const int REED_PIN_OUT = D4;                  // Pin connected to reed switch
+const int BUZZER_PIN_OUT = A4;                // Pin connected to a buzzer and to GND // On the Photon, P1 and Electron, this function works on pins D0, D1, D2, D3, A4, A5, WKP, RX and TX
+const int LED_PIN = D7;                       // Pin internal LED 
+const int standard_toilette_session = 120000; // how many seconds is your standard time for your job on toilette? (= 120 seconds = 2 minutes) 
+
+Timer timer(standard_toilette_session, readData); // https://docs.particle.io/reference/firmware/photon/#software-timers
+
+// **************
+
+void setup() 
+{
+  Serial.begin(9600);
+  pinMode(REED_PIN_IN, INPUT);
+  pinMode(REED_PIN_OUT, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN_OUT, OUTPUT);
+  
+  timer.start();
+}
+
+// **************
+
+/*
+void loop() 
+{
+// the trigger comes via the expired Timer - no loop necessary
+}
+*/
+
+// ************** 
+
+void readData()
+{
+            int lid_open = digitalRead(REED_PIN_IN); // Read the state of the switch
+            if (lid_open == HIGH)
+            // ALARM // the user reads newspaper or something else and blocks the toilet or in the worst case does not close the lid
+            {
+                digitalWrite(LED_PIN, HIGH); // Turn the LED on - optical warning
+                // Particle.publish("Toilette", "forgot to close the lid", PRIVATE); // the Particle Cloud knows what you not learned
+                // Buzzer on - accustical warning
+                    // notes in the melody:
+                    // https://docs.particle.io/reference/firmware/photon/#tone-
+                    int melody[] = {1908,2551,2551,2273,2551,0,2024,1908}; //C4,G3,G3,A3,G3,0,B3,C4
+                    // note durations: 4 = quarter note, 8 = eighth note, etc.:
+                    int noteDurations[] = {4,8,8,4,4,4,4,4};
+                    // iterate over the notes of the melody:
+                    for (int thisNote = 0; thisNote < 8; thisNote++)   
+                    {
+                    // to calculate the note duration, take one second
+                    // divided by the note type.
+                    //e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
+                    int noteDuration = 1000/noteDurations[thisNote];
+                    tone(BUZZER_PIN_OUT, melody[thisNote], noteDuration);
+                    // to distinguish the notes, set a minimum time between them.
+                    // the note's duration + 30% seems to work well:
+                    int pauseBetweenNotes = noteDuration * 1.30;
+                    delay(pauseBetweenNotes);
+                    // stop the tone playing:
+                    noTone(BUZZER_PIN_OUT);
+                    }  
+                digitalWrite(LED_PIN, LOW); // Turn the LED off
+                    // the annoying melody is played continuously until the lid is closed
+            }
+            else if ((lid_open == LOW) and (timer.isActive() == TRUE)) // case the lid if not open, but the timer is not expired
+            {
+                digitalWrite(LED_PIN, LOW); // Turn the LED off 
+                timer.reset(); // https://docs.particle.io/reference/firmware/photon/#reset--1
+            }
+            else
+            // all is fine // the user closed the lid during the defined delay time
+            {
+                digitalWrite(LED_PIN, LOW); // Turn the LED off 
+                timer.reset();
+            }
+}
