@@ -1,0 +1,294 @@
+// Matrix with Particle Photon - works with v0.7.0-rc.3 with 3 Libaries
+// Ingo Lohs, v1.0 v. 03.12.2017
+// Simple LED Matrix Display with Blynk and daily bible word Integration 
+// Uses a 4x MAX7219 Dot Matrix Module to display messages
+// Make sure you add these 3 libraries using the Particle IDE
+
+// https://community.particle.io/t/umlauts-in-ledmatrix-lib/37837
+// Umlaute in die Libary aufnehmen, warum geht ß,öäü,ÖÄÜ nicht?
+
+// ToDo:
+// * test more then 1 Matrix7219 - how long is the scrolling supported / how many Matrix can chainable?
+
+    /* 
+             -----[    ]-----
+       VCC  -|VIN        3V3|-    
+            -|GND        RST|-
+            -|TX        VBAT|-
+            -|RX         GND|- GND
+            -|WKP         D7|-
+            -|DAC         D6|-
+            -|A5          D5|-
+            -|A4          D4|- 
+            -|A3          D3|-     = DIN
+            -|A2          D2|-     = CS
+            -|A1          D1|- SCL = CLK
+            -|A0          D0|- SDA
+              \____________/
+             
+    */
+
+// **************
+
+// This #include statement was automatically added by the Particle IDE.
+#include <SparkJson.h>
+#include <ledmatrix-max7219-max7221.h>
+#include <blynk.h>
+
+char datum[20];        //= "2017-01-01T00:00:00";
+char wochentag[12];    //= "XXXXXXXXtag";
+char sonntag[12];      //= "YYYYYYYYtag";
+char losungstext[256]; //= "LosungsText: Das ist ein längerer Text ÄÖÜ";
+char losungsvers[32];  //= "LosungVers ÄÖÜ";
+char lehrtext[256];    //= "LehrText: Das ist ein längerer Text ÄÖÜ";
+char lehrtextvers[32]; //= "LehrTextVers ÄÖÜ";
+
+int lastDay = 0;
+
+// **************
+
+SerialLogHandler myLogger(LOG_LEVEL_INFO);
+
+char auth[] = "<<< you blynk code here >>>"; // Put your blynk token here
+
+LEDMatrix *led;
+
+int bitmapWidth = 8;            // 8 is default
+
+String text = "Hello World";    // default string for display
+String text2 = "No Texts";      //  default string for Blynk texts
+String text3 = "Getting Infos"; // default string for bible word
+
+int mode = 0;
+
+int textLength = text.length();
+
+// default position of the text is outside and then scrolls left
+int textX = bitmapWidth;
+int fontWidth = 5, space = 1;
+
+// **************
+
+void drawText(String s, int x)
+{
+  int y = 0;
+  for(int i = 0; i < s.length(); i++) {
+    // Adafruit_GFX method
+    led->drawChar(x + i*(fontWidth+space), y, s[i], true, false, 1);
+  }
+}
+
+// **************
+
+// In the Blynk app, I used the Termianl widget on virtual pin V1 to send text messages for display.  
+WidgetTerminal terminal(V1);
+
+// **************
+
+void setup() {
+  
+  // setup a time zone, which is part of the ISO6801 format 
+  Time.zone(isDST() ? +2.00 : +1.00);    
+  
+  Particle.subscribe("hook-response/tageslosung", myHandler, MY_DEVICES);
+
+  // setup pins and library
+  // 1 display per row, 1 display per column
+  // optional pin settings - default: CLK = A0, CS = A1, D_OUT = A2
+  // (pin settings is independent on HW SPI)
+  led = new LEDMatrix(4, 1, D1, D2, D3); // my pins vary from the default  
+  // > add every matrix in the order in which they have been connected <
+  // the first matrix in a row, the first matrix in a column
+  // vertical orientation (-90°) and no mirroring - last three args optional
+  // the Wangdd22 Matrix has 4 matrix elements, arranged side-by-side
+  
+  led->addMatrix(3, 0, 0, false, false);
+  led->addMatrix(2, 0, 0, false, false);
+  led->addMatrix(1, 0, 0, false, false);
+  led->addMatrix(0, 0, 0, false, false);
+  
+  Particle.connect();
+  waitUntil(Particle.connected);
+
+  Blynk.begin(auth);
+  
+  terminal.println("Die Losungen");
+  terminal.println("Thanks to Richard Klose & ScruffR");
+  terminal.println("Ingo Lohs");
+  
+  while(Serial.read() >= 0) Particle.process(); // flush USB Serial RX buffer
+
+  Particle.publish("tageslosung", "MyLosung", PRIVATE);
+  
+}
+
+// BLYNK Terminal Widget ---------------------
+
+BLYNK_WRITE(V1) {
+   String cmd = param[0].asStr();
+   text2 = cmd;
+   String content = Time.format("%H:%M");
+   text2 = cmd + " -- Notiz von " + content;
+}
+
+// In the Blynk app, I used V2 as a button to toggle mode between weather and texts.
+BLYNK_WRITE(V2){
+    mode = param.asInt();
+    Blynk.virtualWrite(V1, text2);
+    Blynk.virtualWrite(V1, "\n"); // Carriage Return - every text displays in a new line
+}
+
+// **************
+
+void loop() {
+  Blynk.run();   
+    
+  static uint32_t msPublish = millis();
+
+  if (lastDay != Time.day() && millis() - msPublish > 60000) {
+    Particle.syncTime(); 
+    waitFor(Particle.syncTimeDone, 5000); // works with v0.6.1 with Photon & Electron
+    msPublish = millis();
+    if (lastDay == Time.day()) return;    // if sync brought us back before midnight, try a bit later again
+        // request new day's data
+        Particle.publish("tageslosung", "MyLosung", PRIVATE);
+  }
+
+// pick which text string will be displayed
+    if (mode == 0) {
+        String content = Time.format("%d.%m.%Y %H:%M");
+        text = text3 + " >> " + content;
+        textLength = text.length();
+    }    
+    
+    if (mode == 1) {
+        String content = Time.format("%H:%M");
+        text = text2 + " >> " + content;
+        textLength = text.length();
+    }
+    
+  if(led != NULL) {
+    drawText(text, textX--);
+    // text animation is ending when the whole text is outside the bitmap
+    if(textX < textLength*(fontWidth+space)*(-1)) {
+      // set default text position
+      textX = bitmapWidth;
+      // show heart
+      led->flush();
+      delay(333);   // 1000 is default
+      // turn all pixels off (takes effect after led->flush())
+      led->fillScreen(false);
+    }
+    // draw text
+    led->flush();
+    delay(125);   // 250 is default 
+  }
+  // animations end
+  else if (led != NULL) {
+    // shutdown all displays
+    led->shutdown(true);
+    // free memory
+    delete led;
+    led = NULL;
+  }
+}
+
+// **************
+
+// WEBHOOK HANDLER TO GET DATA ---------------------
+
+void myHandler(const char *event, const char *data)
+{
+  static int cntEvents = 0;
+  char mutableCopy[strlen(data)+1];
+  strcpy(mutableCopy, data);
+
+  // Start SparkJSON Example	    
+  Log.info("%d: %s, data: %s", ++cntEvents, event, data);
+  if (data) {
+
+    /* JSON Source - https://losungen.klose.cloud/api/today
+    {
+      "Datum": "2017-05-05T00:00:00",
+      "Wtag": "Freitag", 
+      "Sonntag": {},
+      "Losungstext": "Du sollst dein Herz nicht verhärten und deine Hand nicht zuhalten gegenüber deinem armen Bruder.",
+      "Losungsvers": "5.Mose 15,7",
+      "Lehrtext": "Wenn jemand dieser Welt Güter hat und sieht seinen Bruder darben und verschließt sein Herz vor ihm, wie bleibt dann die Liebe Gottes in ihm?",
+      "Lehrtextvers": "1.Johannes 3,17"
+    }
+    */
+    
+    // https://bblanchon.github.io/ArduinoJson/faq/how-to-determine-the-buffer-size/
+    // https://bblanchon.github.io/ArduinoJson/assistant/
+    StaticJsonBuffer<256> jsonBuffer;
+	JsonObject& root = jsonBuffer.parseObject(mutableCopy);
+	
+	if (!root.success()) {
+      Log.warn("parseObject() failed");
+      return;
+    }
+             
+    strncpy(datum       , root["Datum"       ], sizeof(datum)       );
+    strncpy(wochentag   , root["Wtag"        ], sizeof(wochentag)   );
+    strncpy(sonntag     , root["Sonntag"     ], sizeof(sonntag)     );
+	strncpy(losungstext , root["Losungstext" ], sizeof(losungstext) );
+	strncpy(losungsvers , root["Losungsvers" ], sizeof(losungsvers) );
+	strncpy(lehrtext    , root["Lehrtext"    ], sizeof(lehrtext)    );
+	strncpy(lehrtextvers, root["Lehrtextvers"], sizeof(lehrtextvers));
+ 
+    text3 = strcat(losungstext, " - ");
+    text3 = strcat(losungstext, losungsvers);
+    
+    Blynk.virtualWrite(V1, text3);
+    Blynk.virtualWrite(V1, "\n"); // Carriage Return - every text displays in a new line
+
+    lastDay = Time.day();
+    
+  }
+  else {
+    text3 = "no JSON Records available - check the Webhook under Particle Cloud - Console - Integrations!";
+  }
+}
+
+// **************
+
+// FUNCTION TO CHECK SUMMER/WINTER-TIME ---------------------
+
+bool isDST()
+{ // Central European Summer Timer calculation
+  int dayOfMonth = Time.day();
+  int month = Time.month();
+  int dayOfWeek = Time.weekday() - 1; // make Sunday 0 .. Saturday 6
+
+  if (month >= 4 && month <= 9)
+  { // March to September definetly DST
+    return true;
+  }
+  else if (month < 3 || month > 10)
+  { // before March or after October is definetly normal time
+    return false;
+  }
+
+  // March and October need deeper examination
+  boolean lastSundayOrAfter = (dayOfMonth - dayOfWeek > 24);
+  if (!lastSundayOrAfter)
+  { // before switching Sunday
+    return (month == 10); // October DST will be true, March not
+  }
+
+  if (dayOfWeek)
+  { // AFTER the switching Sunday
+    return (month == 3); // for March DST is true, for October not
+  }
+
+  int secSinceMidnightUTC = Time.now() % 86400;
+  boolean dayStartedAs = (month == 10); // DST in October, in March not
+                                        // on switching Sunday we need to consider the time
+  if (secSinceMidnightUTC >= 1 * 3600)
+  { // 1:00 UTC (=2:00 CET/3:00 CEST)
+    return !dayStartedAs;
+  }
+
+  return dayStartedAs;
+}
