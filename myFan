@@ -1,0 +1,71 @@
+// MyFan v1.0 - Ingo Lohs - Stand: 06.12.2017 - works with Particle Firmware v0.7.0-rc.3
+// mit einem Relay lassen sich weitere Lasten in einem unabhängigen Stromkreis schalten
+// Blynk: 1x Button for 200 Energy Points mapped on V3
+
+    /* 
+             -----[    ]-----
+  Relay VCC -|VIN        3V3|-    
+  Relay GND -|GND        RST|-
+            -|TX        VBAT|-
+            -|RX         GND|- 
+            -|WKP         D7|-
+            -|DAC         D6|-
+            -|A5          D5|-
+            -|A4          D4|- Relay IN SIGNAL
+            -|A3          D3|-     
+            -|A2          D2|-     
+            -|A1          D1|- SCL 
+            -|A0          D0|- SDA
+              \____________/
+             
+    */
+
+#include <blynk.h>
+
+// Relay is a HIGH LEVEL: action is on HIGH!!! connectet on 3,3V or 5V
+
+    int baudrate = 9600;              // Serial Monitor 
+    #define relayPin D4               // SIGNAL from Relay
+    #define internalLED D7            // internal Device LED from Spark Core or Particle Photon
+  
+    // You should get Auth Token in the Blynk App.
+    // Go to the Project Settings (nut icon).
+    char auth[] = "<<< your blynk code here >>>";
+    #define vRelayBtn V3
+    unsigned int vRelayStatus; // global var
+  
+// *********    
+
+    BLYNK_WRITE(vRelayBtn) {     // Blynk app WRITES button status to server
+    vRelayStatus = param.asInt();
+    if(vRelayStatus == 1){
+    digitalWrite(relayPin, HIGH);
+    digitalWrite(internalLED, HIGH); // internal LED on
+    Serial.println("Relay is now ON");    
+    }
+    else {
+    digitalWrite(relayPin, LOW); 
+    digitalWrite(internalLED, LOW); 
+    Serial.println("Relay is now OFF");   
+    }
+    }
+
+// *********  
+
+    void setup() 
+    {
+      Serial.begin(baudrate); // Serial Debug Console: CMD - particle serial monitor --follow on Windows or MAC: Terminal - ls /dev/tty.* - screen /dev/tty.usbmodem1411
+      while(!Serial); //Waiting for Serial connection
+      pinMode(relayPin, OUTPUT); //Set pin D4 as an OUTPUT
+      pinMode(internalLED, OUTPUT); //Set pin D7 as an OUTPUT
+      digitalWrite(relayPin, LOW); // Relay off - no pump at start
+      digitalWrite(internalLED, LOW); // internal LED off
+      Blynk.begin(auth); // Blynk magic starts here
+    }
+
+// *********    
+
+    void loop() 
+    {
+    Blynk.run();    
+    }
