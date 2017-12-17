@@ -1,0 +1,186 @@
+// MyFeeder with Particle Photon - works with v0.6.3 with 2 Libaries (Blynk & Stepper)
+// Ingo Lohs, v1.0 v. 15.12.2017
+// Cat, Hamster, Bird-Feeder via Smartphone
+// Uses a 1x Stepper Motor 28BYJ-48 5V DC with driver board ULN2003 Stepper Motor Driver Board
+// Make sure you add these 2 libraries using the Particle IDE
+
+    /* 
+             -----[    ]-----
+       VCC  -|VIN        3V3|-    
+       GND  -|GND        RST|-
+            -|TX        VBAT|-
+            -|RX         GND|- 
+            -|WKP         D7|-
+            -|DAC         D6|-     = IN4
+            -|A5          D5|-     = IN3
+            -|A4          D4|-     = IN2
+       TRIG -|A3          D3|-     = IN1
+       ECHO -|A2          D2|-     
+            -|A1          D1|- SCL 
+            -|A0          D0|- SDA
+              \____________/
+             
+    */
+
+// **************
+
+// This #include statement was automatically added by the Particle IDE.
+#include <blynk.h>
+#include <Stepper.h>
+
+/*
+ This program drives a unipolar or bipolar stepper motor.
+ The motor is attached to digital pins 3 - 6 of your Device.
+ 
+ The motor will rotate in a clockwise direction. 
+
+ Model 28BYJ-48 – 5V - Specs:
+ Rated voltage: 5VDC 
+ Number of Phase: 4 
+ Speed Variation Ratio 1/64 
+ Stride Angle 5.625° /64 
+ Frequency 100Hz 
+ DC resistance 50Ω ±7%(25°C) 
+ Idle In-traction Frequency > 600Hz 
+ Idle Out-traction Frequency > 1000Hz 
+ In-traction Torque >34.3mN.m(120Hz) 
+ Self-positioning Torque >34.3mN.m 
+ Friction torque 600-1200 gf.cm 
+ Pull in torque 300 gf.cm 
+ Insulated resistance >10MΩ (500V) 
+ Insulated electricity power  600VAC/1mA/1s 
+ Insulation grade A 
+ Rise in Temperature <40K(120Hz) 
+ Noise <35dB(120Hz,No load,10cm) 
+*/
+
+// **************
+
+const int stepsPerRevolution = 100;  // change this to fit the number of steps per revolution
+// initialize the stepper library on pins 3 through 6:
+Stepper myStepper(stepsPerRevolution, 3, 4, 5, 6); // IN1, IN2, IN3, IN4 from UL-Stepper-Board
+
+// You should get Auth Token in the Blynk App.
+// Go to the Project Settings (nut icon).
+char auth[] = "<<< your blynk token here >>>";
+#define vRelayBtn_vor V0
+int vRelayStatus; // global var
+int sensorReading; // global var
+unsigned long lastmillis = 0;        // time for interation the loop
+
+const int tank_max = 27;             // how many cm can you fill in your tank?
+long distance, duration;             // UltraSonic values
+#define trigPin	A3                   // UltraSonic HC-SR04 Pin Definitions
+#define echoPin	A4                   // UltraSonic HC-SR04 Pin Definitions
+
+// stay informed:
+int threshold_tank_enough = 7;       // define when its enough in the tank to feed
+int threshold_tank_mid = 13;         // define when its middle in the tank to feed
+int threshold_tank_min = 22;         // define when its minimum in the tank to feed > time to fill up the tank
+
+// *********    
+
+    BLYNK_WRITE(vRelayBtn_vor) {     // Blynk app WRITES button status to server
+    vRelayStatus = param.asInt();
+    if(vRelayStatus == 1){
+    // relay is ON
+    sensorReading = 250; // moving
+    myfeeder();
+    }
+    else {
+    // relay is OFF
+    sensorReading = 0; // stop rotation
+    myfeeder();
+    }
+    }
+
+// *********  
+
+void setup() {
+  myStepper.setSpeed(5);
+  pinMode(trigPin, OUTPUT);         // Set pin A3
+  pinMode(echoPin, INPUT);          // Set pin A4
+  Blynk.begin(auth); // Blynk magic starts here
+}
+
+// ********* 
+
+void loop() 
+{
+    Blynk.run();    
+    
+//    !!! http://docs.blynk.cc/#troubleshooting-flood-error  
+//    no delays in loop - DO NEVER in LOOP!
+
+            if ((millis() - lastmillis) > 50) {
+                lastmillis = millis();
+                readData();
+                myfeeder();
+               
+            }
+}
+
+// ********* 
+
+void readData()
+{
+      // read the Distance with the Ultrasonic HC-SR04
+      digitalWrite(trigPin, LOW);  
+      delayMicroseconds(2); 
+      digitalWrite(trigPin, HIGH);
+      delayMicroseconds(10); 
+      digitalWrite(trigPin, LOW);
+      duration = pulseIn(echoPin, HIGH);
+      distance = (duration/2) / 29.1;
+        
+      // put a Label-Widget in your Blynk App and map it to V1 (200 Energy Points)
+      Blynk.virtualWrite(V1, distance);
+
+    // step 1 - Validate the Distance  - check the right position from UltraSonic Sensor - larger then 0 cm?
+      if (distance == 0)
+      {
+        Blynk.virtualWrite(V2, "Error: Distance Value = 0!");
+      }
+    // step 2 - Is the distance in range?
+      else if (distance >= tank_max || distance <= 0)
+      {
+        Blynk.virtualWrite(V2, "Error: Echo distance problem!");
+      }
+    // step 3 - inform the user
+      else if ((distance > 0) and (distance <= threshold_tank_enough))
+      {
+       Blynk.virtualWrite(V2, "all fine: the tank is full!");
+      }
+      else if ((distance >= threshold_tank_enough) and (distance <= threshold_tank_mid))
+      {
+       Blynk.virtualWrite(V2, "all fine: the tank is half full!");
+      }
+      else if ((distance >= threshold_tank_mid) and (distance <= threshold_tank_min))
+      {
+       Blynk.virtualWrite(V2, "all fine: you should fill up the tank!");
+      }
+      else if (distance <= threshold_tank_min)
+      {
+       Blynk.virtualWrite(V2, "ALARM: nothing in the tank!");
+      }
+      else
+      {
+        Blynk.virtualWrite(V2, "...reading tank content...");
+      }
+}
+
+// ********* 
+
+void myfeeder() {
+  // read the sensor value: you can use also a potentiometer to control the speed
+  // int sensorReading = 0; // analogRead(A0); > I fix this value via "sensorReading = 250; // moving"
+  // map it to a range from 0 to 100:
+  int motorSpeed = map(sensorReading, 0, 1023, 0, 100);
+  // set the motor speed:
+  if (motorSpeed > 0) {
+    myStepper.setSpeed(motorSpeed);
+    // step 1/100 of a revolution:
+    // clockwise
+    myStepper.step(200);
+    }
+}
