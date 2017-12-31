@@ -42,6 +42,8 @@ void translateIR() // takes action based on IR code received
   case 0xFFA25D: Serial.println("POWER Elegoo"); break;     // 16753245 Elegoo
   case 0xE0E040BF: Serial.println("POWER Samsung"); break;  // 3772793023 Samsung
   case 0xD5AD0B51: Serial.println("POWER Technics"); break;  // 3584887633 Technics
+  case 0xA0C: Serial.println("POWER TechniSat"); break; // TechniSat
+  
   case 0xFFE21D: Serial.println("FUNC/STOP"); break;
   case 0xFF629D: Serial.println("VOL+"); break;
   case 0xFF22DD: Serial.println("FAST BACK");    break;
@@ -52,18 +54,49 @@ void translateIR() // takes action based on IR code received
   case 0xFF906F: Serial.println("UP");    break;
   case 0xFF9867: Serial.println("EQ");    break;
   case 0xFFB04F: Serial.println("ST/REPT");    break;
+  
   case 0xFF6897: Serial.println("0");    break;
+  case 0x200: Serial.println("0 TechniSat"); break; // TechniSat
+  case 0xA00: Serial.println("0 TechniSat"); break; // TechniSat
+  
   case 0xFF30CF: Serial.println("1");    break;
+  case 0x201: Serial.println("1 TechniSat"); break; // TechniSat
+  case 0xA01: Serial.println("1 TechniSat"); break; // TechniSat
+  
   case 0xFF18E7: Serial.println("2");    break;
+  case 0x202: Serial.println("2 TechniSat"); break; // TechniSat
+  case 0xA02: Serial.println("2 TechniSat"); break; // TechniSat
+  
   case 0xFF7A85: Serial.println("3");    break;
+  case 0x203: Serial.println("3 TechniSat"); break; // TechniSat
+  case 0xA03: Serial.println("3 TechniSat"); break; // TechniSat
+  
   case 0xFF10EF: Serial.println("4");    break;
+  case 0x204: Serial.println("4 TechniSat"); break; // TechniSat
+  case 0xA04: Serial.println("4 TechniSat"); break; // TechniSat
+  
   case 0xFF38C7: Serial.println("5 Elegoo");    break;     // 16726215 Elegoo
   case 0xE0E0906F: Serial.println("5 Samsung");    break;  // 3772813423 Samsung
   case 0xB1CE824B: Serial.println("5 Technics");    break;  // 2983101003 Technics
+  case 0x205: Serial.println("5 TechniSat"); break; // TechniSat
+  case 0xA05: Serial.println("5 TechniSat"); break; // TechniSat
+  
   case 0xFF5AA5: Serial.println("6");    break;
+  case 0x206: Serial.println("6 TechniSat"); break; // TechniSat
+  case 0xA06: Serial.println("6 TechniSat"); break; // TechniSat
+  
   case 0xFF42BD: Serial.println("7");    break;
+  case 0x207: Serial.println("7 TechniSat"); break; // TechniSat
+  case 0xA07: Serial.println("7 TechniSat"); break; // TechniSat
+
   case 0xFF4AB5: Serial.println("8");    break;
+  case 0x208: Serial.println("8 TechniSat"); break; // TechniSat
+  case 0xA08: Serial.println("8 TechniSat"); break; // TechniSat
+  
   case 0xFF52AD: Serial.println("9");    break;
+  case 0x209: Serial.println("9 TechniSat"); break; // TechniSat
+  case 0xA09: Serial.println("9 TechniSat"); break; // TechniSat
+  
   case 0xFFFFFFFF: Serial.println(" REPEAT");break;  
 
   default: 
