@@ -1,0 +1,129 @@
+// Double-Switch with Particle Photon - works without Libaries - tested with v0.7.0-rc.3
+// Ingo Lohs, v1.1 v. 15.12.2018
+// Projekt, um eine Flüssigkeit in einem Rohr bzw. Becken zu detektieren und eine Signalisierung via IFTTT abzugeben
+
+    /* 
+             -----[    ]-----
+     2xVCC  -|VIN        3V3|-    
+     2xGND  -|GND        RST|-
+            -|TX        VBAT|-
+            -|RX         GND|- 
+            -|WKP         D7|-
+            -|DAC         D6|-
+            -|A5          D5|-
+            -|A4          D4|- SwitchSensor_Rohr DIGITAL-PIN > Becken
+            -|A3          D3|-     
+            -|A2          D2|-      
+            -|A1          D1|- SCL 
+            -|A0          D0|- SDA = SwitchSensor_Rohr DIGITAL-PIN > Rohr
+              \____________/
+             
+    */
+
+// **************
+
+const int SwitchSensor_Rohr = D0;   // Sensor mit VCC/GND/DIGITAL-PIN an PIN D0 vom Photon
+const int SwitchSensor_Becken = D4; // Sensor mit VCC/GND/DIGITAL-PIN an PIN D4 vom Photon
+const int internalLED = D7; 
+bool firstfire_switch_Rohr = true;
+bool firstfire_switch_Becken = true;
+unsigned long lastmillis = 0; // time for interation the loop
+
+void setup() {
+ pinMode(SwitchSensor_Rohr,INPUT);
+ pinMode(SwitchSensor_Becken,INPUT);
+ pinMode(internalLED,OUTPUT);
+ Serial.begin(9600);
+}
+
+void loop() 
+{
+    if ((millis() - lastmillis) > 1000) {
+        lastmillis = millis();
+        readData_Switch_Rohr();
+        readData_Switch_Becken();
+    }
+}
+
+void readData_Switch_Rohr() {
+
+/*
+https://www.amazon.de/gp/product/B00ZR3B60I
+Betriebsspannung 3.3V-5V.
+PCB Größe: 3cm * 1.6cm.
+Stromleuchte (rot) und digitale Schalt-Ausgangsanzeige (grün).
+*/
+
+  int proximity_Rohr = digitalRead(SwitchSensor_Rohr); 
+  
+    if (proximity_Rohr == 1) 
+    {
+    Serial.println("Alles ok - Switch am Rohr open");  
+    digitalWrite(internalLED, LOW);
+    firstfire_switch_Rohr = true;
+    }
+    else if ((proximity_Rohr == 0) and (firstfire_switch_Rohr == true))
+    {
+    Serial.println("1. Alarm - Switch am Rohr closed");
+    digitalWrite(internalLED, HIGH);
+    firstfire_switch_Rohr = false;
+    Particle.publish("myWaterWarner", "Wasseraustritt am Rohr", PRIVATE);
+    }
+    else if ((proximity_Rohr == 0) and (firstfire_switch_Rohr == false))
+    {
+    Serial.println("2. Alarm - Switch am Rohr closed a while");
+    digitalWrite(internalLED, HIGH);
+    firstfire_switch_Rohr = false;
+    }
+    else
+    {
+    Serial.println("Switch ERROR Reading Value - am Rohr");
+    digitalWrite(internalLED, HIGH);
+    delay(500);
+    digitalWrite(internalLED, LOW);
+    delay(500);
+    } 
+
+} 
+
+
+void readData_Switch_Becken() {
+
+/*
+https://www.amazon.de/gp/product/B00ZR3B60I
+Betriebsspannung 3.3V-5V.
+PCB Größe: 3cm * 1.6cm.
+Stromleuchte (rot) und digitale Schalt-Ausgangsanzeige (grün).
+*/
+
+  int proximity_Becken = digitalRead(SwitchSensor_Becken); 
+  
+    if (proximity_Becken == 1) 
+    {
+    Serial.println("Alles ok - Switch am Becken open");  
+    digitalWrite(internalLED, LOW);
+    firstfire_switch_Becken = true;
+    }
+    else if ((proximity_Becken == 0) and (firstfire_switch_Becken == true))
+    {
+    Serial.println("1. Alarm - Switch am Becken closed");
+    digitalWrite(internalLED, HIGH);
+    firstfire_switch_Becken = false;
+    Particle.publish("myWaterWarner", "Wasseraustritt am Becken", PRIVATE);
+    }
+    else if ((proximity_Becken == 0) and (firstfire_switch_Becken == false))
+    {
+    Serial.println("2. Alarm - Switch am Becken closed a while");
+    digitalWrite(internalLED, HIGH);
+    firstfire_switch_Becken = false;
+    }
+    else
+    {
+    Serial.println("Switch ERROR Reading Value - am Becken");
+    digitalWrite(internalLED, HIGH);
+    delay(500);
+    digitalWrite(internalLED, LOW);
+    delay(500);
+    } 
+
+} 
